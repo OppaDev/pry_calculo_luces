@@ -35,9 +35,11 @@ class AreaController {
     }
 
     return {
-      "cantidadLuces": x * y,
-      "distribucion": {"horizontales": x, "verticales": y},
-      "puntos": puntos,
-    };
+    "cantidadLuces": x * y,
+    "distribucion": {"horizontales": x, "verticales": y},
+    "puntos": puntos,
+    "ancho": areaModel.ancho,
+    "largo": areaModel.largo, // Añadir ancho y largo
+  };
   }
 }
