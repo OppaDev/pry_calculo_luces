@@ -18,6 +18,7 @@ class GraficoVista extends StatelessWidget {
       body: Center(
         child: CustomPaint(
           size: Size(ancho, alto),
+          
           painter: LucesPainter(puntos),
         ),
       ),
