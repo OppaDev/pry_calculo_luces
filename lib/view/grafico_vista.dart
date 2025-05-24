@@ -8,234 +8,509 @@ class GraficoVista extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    List<Map<String, double>> puntos = List<Map<String, double>>.from(
-      resultado['puntos'],
-    );
-    
-    // Obtener dimensiones del área
-    double maxX = puntos.isNotEmpty ? puntos.map((p) => p['x']!).reduce((a, b) => a > b ? a : b) : 0;
-    double maxY = puntos.isNotEmpty ? puntos.map((p) => p['y']!).reduce((a, b) => a > b ? a : b) : 0;
-    
-    // Ajustar para mostrar el rectángulo completo
-    double areaAncho = maxX * 2;
-    double areaAlto = maxY * 2;
-
+    // Forzar orientación horizontal
     return Scaffold(
       appBar: AppBar(
         title: Text("Distribución de Luces"),
         backgroundColor: Colors.blue.shade600,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.info_outline),
+            onPressed: () => _mostrarInformacion(context),
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Información del resultado
-              Card(
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Resultados del Cálculo',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+      body: OrientationBuilder(
+        builder: (context, orientation) {
+          if (orientation == Orientation.portrait) {
+            // Mostrar mensaje para rotar el dispositivo
+            return _buildRotateMessage();
+          } else {
+            // Vista horizontal completa
+            return _buildHorizontalLayout(context);
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildRotateMessage() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.screen_rotation,
+            size: 64,
+            color: Colors.blue.shade400,
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Rota tu dispositivo',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue.shade700,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Para una mejor visualización del plano',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHorizontalLayout(BuildContext context) {
+    List<Map<String, double>> puntos = List<Map<String, double>>.from(
+      resultado['puntos'],
+    );
+    
+    // Obtener dimensiones reales del área
+    double areaAncho = resultado['ancho'].toDouble();
+    double areaLargo = resultado['largo'].toDouble();
+
+    return Row(
+      children: [
+        // Panel de información (lado izquierdo)
+        Container(
+          width: 300,
+          child: _buildInfoPanel(context),
+        ),
+        
+        // Separador vertical
+        Container(
+          width: 1,
+          color: Colors.grey.shade300,
+        ),
+        
+        // Gráfico interactivo (lado derecho)
+        Expanded(
+          child: Container(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Plano de Distribución Interactivo',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Usa los gestos para hacer zoom y explorar el plano',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                SizedBox(height: 16),
+                Expanded(
+                  child: _buildInteractiveChart(puntos, areaAncho, areaLargo),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoPanel(BuildContext context) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Resultados del cálculo
+          _buildResultCard(),
+          
+          SizedBox(height: 16),
+          
+          // Dimensiones del área
+          _buildDimensionsCard(),
+          
+          SizedBox(height: 16),
+          
+          // Leyenda
+          _buildLegendCard(),
+          
+          SizedBox(height: 16),
+          
+          // Información técnica
+          _buildTechnicalInfo(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResultCard() {
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Resultados',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue.shade700,
+              ),
+            ),
+            SizedBox(height: 12),
+            _buildInfoRow(
+              'Total de Luces',
+              '${resultado['cantidadLuces']}',
+              Icons.lightbulb,
+              Colors.orange,
+            ),
+            SizedBox(height: 8),
+            _buildInfoRow(
+              'Distribución H',
+              '${resultado['distribucion']['horizontales']}',
+              Icons.horizontal_rule,
+              Colors.green,
+            ),
+            SizedBox(height: 8),
+            _buildInfoRow(
+              'Distribución V',
+              '${resultado['distribucion']['verticales']}',
+              Icons.vertical_align_center,
+              Colors.purple,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDimensionsCard() {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Dimensiones',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue.shade700,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text('Ancho: ${resultado['ancho']} m'),
+            Text('Largo: ${resultado['largo']} m'),
+            Text('Área: ${(resultado['ancho'] * resultado['largo']).toStringAsFixed(1)} m²'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegendCard() {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Leyenda',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue.shade700,
+              ),
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.amber,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Expanded(child: Text('Luminarias', style: TextStyle(fontSize: 12))),
+              ],
+            ),
+            SizedBox(height: 4),
+            Row(
+              children: [
+                Container(
+                  width: 12,
+                  height: 2,
+                  color: Colors.red,
+                ),
+                SizedBox(width: 8),
+                Expanded(child: Text('Perímetro', style: TextStyle(fontSize: 12))),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTechnicalInfo() {
+    return Card(
+      color: Colors.blue.shade50,
+      child: Padding(
+        padding: EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Parámetros',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue.shade700,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              '• 1600 lm/foco\n'
+              '• 500 lm/m² requeridos\n'
+              '• Factor: 0.8',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.blue.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, IconData icon, Color color) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 20),
+        SizedBox(width: 8),
+        Expanded(child: Text(label, style: TextStyle(fontSize: 14))),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInteractiveChart(List<Map<String, double>> puntos, double areaAncho, double areaLargo) {
+    return InteractiveViewer(
+      boundaryMargin: EdgeInsets.all(20),
+      minScale: 0.5,
+      maxScale: 10.0,
+      child: AspectRatio(
+        aspectRatio: areaAncho / areaLargo,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.red, width: 3),
+            color: Colors.grey.shade50,
+          ),
+          child: CustomPaint(
+            painter: LightsPainter(puntos, areaAncho, areaLargo),
+            child: ScatterChart(
+              ScatterChartData(
+                // Puntos invisibles para el sistema de coordenadas
+                scatterSpots: puntos
+                    .map((punto) => ScatterSpot(
+                          punto['x']!,
+                          punto['y']!,
+                        ))
+                    .toList(),
+                
+                // Configuración de límites
+                minX: 0,
+                maxX: areaAncho,
+                minY: 0,
+                maxY: areaLargo,
+                
+                backgroundColor: Colors.transparent,
+                
+                // Configuración de tooltips
+                scatterTouchData: ScatterTouchData(
+                  enabled: true,
+                  touchTooltipData: ScatterTouchTooltipData(
+                    tooltipBgColor: Colors.blue.shade700.withOpacity(0.9),
+                    getTooltipItems: (touchedSpot) => ScatterTooltipItem(
+                      'Luminaria\nX: ${touchedSpot.x.toStringAsFixed(1)} m\nY: ${touchedSpot.y.toStringAsFixed(1)} m',
+                      textStyle: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+                
+                // Configuración de títulos y ejes
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 50,
+                      interval: areaLargo > 10 ? areaLargo / 5 : 2,
+                      getTitlesWidget: (value, meta) {
+                        if (value < 0 || value > areaLargo) return Container();
+                        return Text(
+                          value.toStringAsFixed(1),
+                          style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+                        );
+                      },
+                    ),
+                    axisNameWidget: Container(
+                      margin: EdgeInsets.only(bottom: 10),
+                      child: Text(
+                        'Largo (m)',
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
+                          fontSize: 12,
                           color: Colors.blue.shade700,
                         ),
                       ),
-                      SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildInfoCard(
-                            'Total de Luces',
-                            '${resultado['cantidadLuces']}',
-                            Icons.lightbulb,
-                            Colors.orange,
-                          ),
-                          _buildInfoCard(
-                            'Horizontales',
-                            '${resultado['distribucion']['horizontales']}',
-                            Icons.horizontal_rule,
-                            Colors.green,
-                          ),
-                          _buildInfoCard(
-                            'Verticales',
-                            '${resultado['distribucion']['verticales']}',
-                            Icons.vertical_align_center,
-                            Colors.purple,
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-              
-              SizedBox(height: 20),
-              
-              // Gráfico
-              Card(
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Plano de Distribución',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 50,
+                      interval: areaAncho > 10 ? areaAncho / 5 : 2,
+                      getTitlesWidget: (value, meta) {
+                        if (value < 0 || value > areaAncho) return Container();
+                        return Text(
+                          value.toStringAsFixed(1),
+                          style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+                        );
+                      },
+                    ),
+                    axisNameWidget: Container(
+                      margin: EdgeInsets.only(top: 10),
+                      child: Text(
+                        'Ancho (m)',
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
+                          fontSize: 12,
                           color: Colors.blue.shade700,
                         ),
                       ),
-                      SizedBox(height: 16),
-                      Container(
-                        height: 400,
-                        child: ScatterChart(
-                          ScatterChartData(
-                            scatterSpots: puntos
-                                .map((punto) => ScatterSpot(punto['x']!, punto['y']!))
-                                .toList(),
-                            minX: -areaAncho * 0.1,
-                            maxX: areaAncho * 1.1,
-                            minY: -areaAlto * 0.1,
-                            maxY: areaAlto * 1.1,
-                            backgroundColor: Colors.grey.shade100,
-                            scatterTouchData: ScatterTouchData(
-                              touchTooltipData: ScatterTouchTooltipData(
-                                getTooltipColor: (touchedSpot) => Colors.blue.withOpacity(0.8),
-                                getTooltipItems: (touchedSpot) => ScatterTooltipItem(
-                                  'Luz\nX: ${touchedSpot.x.toStringAsFixed(1)}\nY: ${touchedSpot.y.toStringAsFixed(1)}',
-                                  textStyle: const TextStyle(color: Colors.white, fontSize: 12),
-                                ),
-                              ),
-                            ),
-                            titlesData: FlTitlesData(
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 40,
-                                  getTitlesWidget: (value, meta) {
-                                    return Text(
-                                      value.toStringAsFixed(0),
-                                      style: TextStyle(fontSize: 10),
-                                    );
-                                  },
-                                ),
-                                axisNameWidget: Text(
-                                  'Alto (m)',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 40,
-                                  getTitlesWidget: (value, meta) {
-                                    return Text(
-                                      value.toStringAsFixed(0),
-                                      style: TextStyle(fontSize: 10),
-                                    );
-                                  },
-                                ),
-                                axisNameWidget: Text(
-                                  'Ancho (m)',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                            ),
-                            gridData: FlGridData(
-                              show: true,
-                              drawHorizontalLine: true,
-                              drawVerticalLine: true,
-                              horizontalInterval: areaAlto / 10,
-                              verticalInterval: areaAncho / 10,
-                              getDrawingHorizontalLine: (value) => FlLine(
-                                color: Colors.grey.shade300,
-                                strokeWidth: 0.5,
-                              ),
-                              getDrawingVerticalLine: (value) => FlLine(
-                                color: Colors.grey.shade300,
-                                strokeWidth: 0.5,
-                              ),
-                            ),
-                            borderData: FlBorderData(
-                              show: true,
-                              border: Border.all(color: Colors.red, width: 2),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
+                  ),
+                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                
+                // Grid mejorado
+                gridData: FlGridData(
+                  show: true,
+                  drawHorizontalLine: true,
+                  drawVerticalLine: true,
+                  horizontalInterval: areaLargo > 10 ? areaLargo / 8 : 1,
+                  verticalInterval: areaAncho > 10 ? areaAncho / 8 : 1,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: Colors.grey.shade300,
+                    strokeWidth: 0.8,
+                    dashArray: [3, 3],
+                  ),
+                  getDrawingVerticalLine: (value) => FlLine(
+                    color: Colors.grey.shade300,
+                    strokeWidth: 0.8,
+                    dashArray: [3, 3],
                   ),
                 ),
+                
+                // Sin border interno, ya que usamos Container
+                borderData: FlBorderData(show: false),
               ),
-              
-              SizedBox(height: 20),
-              
-              // Leyenda
-              Card(
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      Icon(Icons.lightbulb, color: Colors.blue, size: 20),
-                      SizedBox(width: 8),
-                      Text('Posición de las luminarias'),
-                      SizedBox(width: 20),
-                      Container(
-                        width: 20,
-                        height: 2,
-                        color: Colors.red,
-                      ),
-                      SizedBox(width: 8),
-                      Text('Perímetro del área'),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildInfoCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            title,
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-            textAlign: TextAlign.center,
+  void _mostrarInformacion(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Cómo usar el plano'),
+        content: Text(
+          '• Pellizca para hacer zoom\n'
+          '• Arrastra para mover el plano\n'
+          '• Toca una luz para ver su posición\n'
+          '• El borde rojo marca el perímetro del área\n'
+          '• Los puntos amarillos son las luminarias',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Entendido"),
           ),
         ],
       ),
     );
   }
+}
+
+// CustomPainter para dibujar las luces con color uniforme
+class LightsPainter extends CustomPainter {
+  final List<Map<String, double>> puntos;
+  final double areaAncho;
+  final double areaLargo;
+
+  LightsPainter(this.puntos, this.areaAncho, this.areaLargo);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.amber
+      ..style = PaintingStyle.fill;
+
+    final strokePaint = Paint()
+      ..color = Colors.amber.shade800
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    // Calcular la escala para convertir coordenadas del área a coordenadas del canvas
+    final scaleX = size.width / areaAncho;
+    final scaleY = size.height / areaLargo;
+
+    for (var punto in puntos) {
+      final x = punto['x']! * scaleX;
+      final y = (areaLargo - punto['y']!) * scaleY; // Invertir Y para que coincida con el gráfico
+
+      // Dibujar círculo relleno
+      canvas.drawCircle(Offset(x, y), 8, paint);
+      // Dibujar borde del círculo
+      canvas.drawCircle(Offset(x, y), 8, strokePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
